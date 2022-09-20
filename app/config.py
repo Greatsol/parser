@@ -1,0 +1,4 @@
+TOR_PORT = 9150
+PROXY_LIST = ""
+THREADS_NUM = 4
+FILES_PATH = "~/data/"
