@@ -6,6 +6,7 @@ import requests
 from tenacity import TryAgain, retry, stop, wait
 
 from app.config import PROXY_LIST, TOR_PORT
+from app.main import logger
 
 
 class Parser:
@@ -51,7 +52,7 @@ class Parser:
     @retry(
         reraise=True,
         wait=wait.wait_incrementing(start=1, increment=1),
-        stop=stop.stop_after_attempt(5),
+        stop=stop.stop_after_attempt(10),
     )
     def request(self, method: Literal["POST", "GET"], path: str, **kwargs) -> requests.Response:
         """Запрос к сайту."""
@@ -61,12 +62,10 @@ class Parser:
         response = self.session.request(
             method, path, headers=self.HEADERS[method], **kwargs)
 
-        print(f"{method} response to {path}. Status code: {response.status_code}")
-
-        # if response.status_code == requests.codes.too_many_requests:
-        #     raise TryAgain()
+        logger.info(f"{method} response to {path} with data {kwargs.get('data')}. Status code: {response.status_code}")
 
         if response.status_code != 200:
+            self.update_proxy()
             raise TryAgain()
 
         if method == "POST" and response.json()["content"] is None:

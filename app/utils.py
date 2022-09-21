@@ -7,6 +7,7 @@ import pandas as pd
 from app.config import FILES_PATH
 from app.parser import Parser
 from app.pydantic_classes import Game, Games
+from app.main import logger
 
 
 def clean_gamer_json(data: str) -> str:
@@ -62,7 +63,7 @@ def parse_user_id_by_category(product_type_id: int, parser: Parser) -> list[int]
             content_length = len(users)
             users_id.extend(user["userId"] for user in users)
         except:
-            print("Пользователи не считались из категории.")
+            logger.error("Пользователи не считались из категории.")
         page_counter += 1
     return users_id
 
