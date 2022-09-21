@@ -27,8 +27,6 @@ def parse_page(url: str, parser: Parser) -> dict[str, str | int] | Exception:
     if dirty_json is None:
         return Exception("Don't have needed json.")
     dirty_json = dirty_json.group()[8:]
-    with open("dirty_json.json", "w", encoding="utf-8") as file:
-        file.write(dirty_json)
     gamer_json = clean_gamer_json(dirty_json)
     data = json.loads(gamer_json)
     return data
