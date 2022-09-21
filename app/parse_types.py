@@ -59,14 +59,12 @@ class Gamer:
         self.serve_num = data["serveNum"]
         for socialweb in data["socialList"]:
             setattr(self, socialweb["type"], socialweb["url"])
-        products = []
         for product in data["products"]:
             product_name = product["productName"]
             price = product["price"]
             unit = product["priceUnitDesc"]
             product_id = product["productId"]
             serve_num = self.get_product_serve(product_id, parser)
-            products.append(
-                f"{product_name} - {price}/{unit} [{serve_num}]")
-        self.products = "\n".join(products)
+            setattr(self, product_name, f"{price}/{unit}")
+            setattr(self, f"{product_name} count", serve_num)
         self.timestamp = datetime.now()
