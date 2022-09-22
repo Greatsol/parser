@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from app.parser import Parser
+from app.main import logger
 
 
 class ValidationError(Exception):
@@ -25,8 +26,13 @@ class Gamer:
     def __init__(self, epal_id: int, parser: Parser) -> None:
         data = self.get_gamer_info(epal_id, parser=parser)
         if isinstance(data, Exception):
-            raise Exception("Error self.get_gamer_info response.")
+            self.make_empty_gamer(epal_id)
+            return
         self.parse_fields(data, parser=parser)
+
+    def make_empty_gamer(self, epal_id: int) -> None:
+        self.user_id = epal_id
+        self.name = "Invalid user"
 
     def get_product_serve(self, epal_id: int, parser: Parser) -> int | Exception:
         data = {"productId": str(epal_id), "shareCode": ""}
@@ -41,6 +47,9 @@ class Gamer:
         data = {"userId": epal_id}
         response = parser.request(
             "POST", path="https://play.epal.gg/web/user-search/info-to-detail", data=str(data))
+        if response == False:
+            logger.error(f"{epal_id} недоступен.")
+            return Exception
         response = response.json()
         if "content" not in response.keys():
             return Exception("Key content don't in product response json.")

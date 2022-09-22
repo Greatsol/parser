@@ -3,7 +3,9 @@ from random import randint
 from typing import Literal
 
 import requests
-from tenacity import TryAgain, retry, stop, wait
+from tenacity import retry
+from tenacity.retry import retry_if_result
+from tenacity.stop import stop_after_attempt
 
 from app.config import PROXY_LIST, TOR_PORT
 from app.main import logger
@@ -50,11 +52,11 @@ class Parser:
             self.proxy_pool = cycle(PROXY_LIST)
 
     @retry(
-        reraise=True,
-        wait=wait.wait_incrementing(start=1, increment=1),
-        stop=stop.stop_after_attempt(10),
+        stop=stop_after_attempt(5),
+        retry_error_callback=self.skip_request,
+        retry=retry_if_result(self.validate_result))
     )
-    def request(self, method: Literal["POST", "GET"], path: str, **kwargs) -> requests.Response:
+    def request(self, method: Literal["POST", "GET"], path: str, **kwargs) -> requests.Response | bool:
         """Запрос к сайту."""
         if path.startswith('/'):
             path = self.BASE_URL + path
@@ -62,17 +64,21 @@ class Parser:
         response = self.session.request(
             method, path, headers=self.HEADERS[method], **kwargs)
 
-        logger.info(f"{method} response to {path} with data {kwargs.get('data')}. Status code: {response.status_code}")
+        logger.info(f"{method} request to {path} with data {kwargs.get('data')}. Status code: {response.status_code}")
 
-        if response.status_code != 200:
+        if response.status_code != 200 or() method == "POST" and response.json()["content"] is None):
             self.update_proxy()
-            raise TryAgain()
-
-        if method == "POST" and response.json()["content"] is None:
-            self.update_proxy()
-            raise TryAgain()
+            logger.error(f"Request to {path} with data {kwargs.get('data')} filed.")
+            return False
 
         return response
+
+    def skip_request(*args) -> str:
+        return "Skip"
+
+    def validate_result(self, result) -> bool:
+        """Проверка результата запроса."""
+        return isinstance(result, bool)
 
     def update_proxy(self) -> None:
         """Смена прокси сессии в зависимости от настроек."""
