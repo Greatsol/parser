@@ -73,8 +73,8 @@ class Parser:
 
         return response
 
-    def skip_request(*args) -> str:
-        return "Skip"
+    def skip_request(*args) -> bool:
+        return False
 
     def validate_result(self, result) -> bool:
         """Проверка результата запроса."""
