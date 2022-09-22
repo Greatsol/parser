@@ -78,3 +78,11 @@ def func_chunks_generators(lst: list[Any], n: int) -> Generator:
 def write_gamers_data_to_file(data: tuple[dict[str, Any]], file_name: str) -> None:
     """Запись категории игроков в файл."""
     pd.DataFrame(data).to_excel(f"{FILES_PATH}{file_name}.xlsx")
+
+
+def write_last_file(q: Queue) -> None:
+    """Запись остатков данных в очереди в файл."""
+    data = []
+    while q.qsize():
+        data.append(q.get())
+    write_gamers_data_to_file(data, name="final")
