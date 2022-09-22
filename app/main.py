@@ -1,9 +1,9 @@
 from threading import Thread
 from queue import Queue
 from time import sleep
+from typing import Any
 
 from loguru import logger
-import pandas as pd
 
 from app.config import THREADS_NUM, FILES_PATH, FILE_ROTATION
 from app.parse_types import Gamer
@@ -27,8 +27,8 @@ logger.add(
 
 
 USERS_ID_DATA = []
-MAIN_QUEUE = Queue()
-USER_DATA_QUEUE = Queue()
+MAIN_QUEUE: Queue[int] = Queue()
+USER_DATA_QUEUE: Queue[dict[str, Any]] = Queue()
 
 
 @logger.catch
@@ -50,7 +50,8 @@ def parse_user_data(name: str) -> None:
     logger.info(f"Поток {name} запущен.")
     parser = Parser()
     while MAIN_QUEUE.qsize():
-        USER_DATA_QUEUE.put(Gamer(MAIN_QUEUE.get(), parser=parser))
+        USER_DATA_QUEUE.put(
+            Gamer(MAIN_QUEUE.get(), parser=parser).to_pandas_row())
     logger.info(f"Поток {name} закончен.")
 
 
@@ -61,11 +62,11 @@ def write_data_thread() -> None:
     logger.info("Поток записи в файлы запущен.")
     while True:
         if USER_DATA_QUEUE.qsize() > FILE_ROTATION:
-            data = []
+            data: list[dict[str, Any]] = []
             for _ in range(FILE_ROTATION):
-                data.append(USER_DATA_QUEUE.put())
+                data.append(USER_DATA_QUEUE.get())
             write_gamers_data_to_file(data, name)
-            logger.info(f"Файл ~/data/{game.name}.xlsx записан.")
+            logger.info(f"Файл ~/data/{name}.xlsx записан.")
             name += 1
         else:
             sleep(300)
@@ -79,7 +80,7 @@ def main():
     chunks = func_chunks_generators(games, THREADS_NUM)
     category_threads = [
         Thread(
-            target=parse_thread, args=(chunk, f"Категории {i}"), name=f"Категории {i}"
+            target=parse_id_thread, args=(chunk, f"Категории {i}"), name=f"Категории {i}"
         )
         for i, chunk in enumerate(chunks)
     ]
@@ -99,15 +100,12 @@ def main():
     user_parsers = []
     for i in range(THREADS_NUM):
         name = f"Парсинг пользователей {i}"
-        user_parsers.append(Thread(target=parse_user_data, args=(name), name=name))
+        user_parsers.append(
+            Thread(target=parse_user_data, args=(name), name=name))
     [thread.start() for thread in user_parsers]
-    
+
     write_thread = Thread(target=write_data_thread, name="Поток записи")
     write_thread.start()
-    
+
     [thread.join() for thread in user_parsers]
     write_thread.join()
-
-    
-    
-

@@ -1,6 +1,6 @@
 from itertools import cycle
 from random import randint
-from typing import Literal
+from typing import Any, Literal
 
 import requests
 from tenacity import retry
@@ -9,6 +9,15 @@ from tenacity.stop import stop_after_attempt
 
 from app.config import PROXY_LIST, TOR_PORT
 from app.main import logger
+
+
+def skip_request(*args) -> bool:
+    return False
+
+
+def validate_result(result: Any) -> bool:
+    """Проверка результата запроса."""
+    return isinstance(result, bool)
 
 
 class Parser:
@@ -53,8 +62,8 @@ class Parser:
 
     @retry(
         stop=stop_after_attempt(5),
-        retry_error_callback=self.skip_request,
-        retry=retry_if_result(self.validate_result))
+        retry_error_callback=skip_request,
+        retry=retry_if_result(validate_result)
     )
     def request(self, method: Literal["POST", "GET"], path: str, **kwargs) -> requests.Response | bool:
         """Запрос к сайту."""
@@ -64,21 +73,16 @@ class Parser:
         response = self.session.request(
             method, path, headers=self.HEADERS[method], **kwargs)
 
-        logger.info(f"{method} request to {path} with data {kwargs.get('data')}. Status code: {response.status_code}")
+        logger.info(
+            f"{method} request to {path} with data {kwargs.get('data')}. Status code: {response.status_code}")
 
-        if response.status_code != 200 or() method == "POST" and response.json()["content"] is None):
+        if response.status_code != 200 or (method == "POST" and response.json()["content"] is None):
             self.update_proxy()
-            logger.error(f"Request to {path} with data {kwargs.get('data')} filed.")
+            logger.error(
+                f"Request to {path} with data {kwargs.get('data')} filed.")
             return False
 
         return response
-
-    def skip_request(*args) -> bool:
-        return False
-
-    def validate_result(self, result) -> bool:
-        """Проверка результата запроса."""
-        return isinstance(result, bool)
 
     def update_proxy(self) -> None:
         """Смена прокси сессии в зависимости от настроек."""
@@ -90,8 +94,7 @@ class Parser:
 
     def gen_proxy(self) -> dict[str, str]:
         """Новый прокси через тор."""
-        proxy_auth = str(randint(1, 0x7FFFFFFF)) + ":" + \
-            str(randint(1, 0x7FFFFFFF))
+        proxy_auth = f"{randint(1, 0x7FFFFFFF)}:{str(randint(1, 0x7FFFFFFF))}"
         proxies = {
             "http": f"socks5://{proxy_auth}@localhost:{TOR_PORT}",
             "https": f"socks5://{proxy_auth}@localhost:{TOR_PORT}",

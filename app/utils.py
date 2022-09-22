@@ -1,5 +1,6 @@
 import json
 import re
+from queue import Queue
 from typing import Any, Generator
 
 import pandas as pd
@@ -75,7 +76,7 @@ def func_chunks_generators(lst: list[Any], n: int) -> Generator:
         yield lst[i: i + chunk_len]
 
 
-def write_gamers_data_to_file(data: tuple[dict[str, Any]], file_name: str) -> None:
+def write_gamers_data_to_file(data: list[dict[str, Any]], file_name: int | str) -> None:
     """Запись категории игроков в файл."""
     pd.DataFrame(data).to_excel(f"{FILES_PATH}{file_name}.xlsx")
 
@@ -85,4 +86,4 @@ def write_last_file(q: Queue) -> None:
     data = []
     while q.qsize():
         data.append(q.get())
-    write_gamers_data_to_file(data, name="final")
+    write_gamers_data_to_file(data, file_name="final")
