@@ -39,9 +39,10 @@ def parse_id_thread(games: list[Game], name: str) -> None:
     for counter, game in enumerate(games):
         gamers_ids = parse_user_id_by_category(game.id, parser)
         logger.info(
-            f"Поток {name}: Id игроков {game.name} {game.id} спаршены. Игроков:{len(gamers_ids)}"
+            f"Поток {name}: Id игроков {game.name} {game.id} спаршены. Игроков:{len(gamers_ids). {counter+1}/{len(games)}}"
         )
         USERS_ID_DATA.extend(gamers_ids)
+    logger.info(f"Поток {name} завершён.")
 
 
 @logger.catch
