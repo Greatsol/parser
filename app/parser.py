@@ -70,8 +70,11 @@ class Parser:
         if path.startswith('/'):
             path = self.BASE_URL + path
 
-        response = self.session.request(
-            method, path, headers=self.HEADERS[method], **kwargs)
+        try:
+            response = self.session.request(
+                method, path, headers=self.HEADERS[method], **kwargs)
+        except requests.exceptions.ConnectionError:
+            logger.error("requests.exceptions.ConnectionError")
 
         logger.info(
             f"{method} request to {path} with data {kwargs.get('data')}. Status code: {response.status_code}")
