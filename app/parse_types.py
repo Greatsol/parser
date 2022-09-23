@@ -28,7 +28,7 @@ class Gamer:
         if isinstance(data, Exception):
             self.make_empty_gamer(epal_id)
             return
-        self.parse_fields(data, parser=parser)
+        self.parse_fields(data, parser=parser, epal_id=epal_id)
 
     def make_empty_gamer(self, epal_id: int) -> None:
         self.user_id = epal_id
@@ -38,6 +38,8 @@ class Gamer:
         data = {"productId": str(epal_id), "shareCode": ""}
         response = parser.request(
             "POST", path=f"https://play.epal.gg/web/product/detail", data=str(data))
+        if response == False:
+            return 0
         response = response.json()
         if response["content"] is None:
             return Exception("No content in product response json.")
@@ -58,7 +60,10 @@ class Gamer:
     def to_pandas_row(self) -> dict[str, Any]:
         return self.__dict__
 
-    def parse_fields(self, data: dict[str, Any], parser: Parser) -> None:
+    def parse_fields(self, data: dict[str, Any], parser: Parser, epal_id: int) -> None:
+        if not isinstance(data, dict):
+            self.make_empty_gamer(epal_id)
+            return
         self.name = data["nickname"]
         self.user_id = data["userId"]
         self.raiting = data["avgScore"]
