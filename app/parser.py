@@ -75,6 +75,7 @@ class Parser:
                 method, path, headers=self.HEADERS[method], **kwargs)
         except requests.exceptions.ConnectionError:
             logger.error("requests.exceptions.ConnectionError")
+            return False
 
         logger.info(
             f"{method} request to {path} with data {kwargs.get('data')}. Status code: {response.status_code}")
