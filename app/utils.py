@@ -58,7 +58,7 @@ def parse_user_id_by_category(product_type_id: int, parser: Parser) -> list[int]
     content_length = 20
     users_id = []
     error_counter = 0
-    while content_length == 20 and error_counter < 5:
+    while content_length == 20 and error_counter < 5 and page_counter <= 500:
         data["pn"] = page_counter
         response = parser.request("POST", url, data=str(data))
         if response == False:
@@ -107,7 +107,13 @@ def write_ids_to_json(data: set[int]) -> None:
 
 def cocncat_xlsxs(file_path: Optional[str] = None) -> Optional[pd.DataFrame]:
     """Объединяет все xlsx в FILE_PATH."""
-    df = pd.concat([pd.read_excel(path) for path in Path(FILE_PATH).iterdir()])
+    dfs = []
+    for path in Path(FILES_PATH).iterdir():
+        try:
+            dfs.append(pd.read_excel(path))
+        except pd._config.config.OptionError:
+            logger.error(f"Error with reading file: {path}")
+    df = pd.concat(dfs)
     if file_path:
         df.to_excel(file_path)
     else:
