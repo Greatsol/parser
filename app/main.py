@@ -98,8 +98,9 @@ def parse_gamers_thread(name: str) -> None:
             gamer_collection.insert_one(res)
             USER_DATA_QUEUE.put(res)
             logger.success(f"Поток {name}. Спарсил пользователя {gamer_id}")
-        except:
-            logger.error(f"Поток {name}. Ошибка пользователя {gamer_id}")
+        except Exception as err:
+            logger.error(
+                f"Поток {name}. Ошибка пользователя {gamer_id}. {err}")
     logger.info(f"Поток {name} закончен.")
 
 
@@ -108,13 +109,11 @@ def make_parsing_queue() -> None:
     global USERS_ID_DATA
     logger.info(f"Из категорий спаршено {len(USERS_ID_DATA)} id.")
     USERS_ID_DATA = set(USERS_ID_DATA)
+    logger.info(f"Уникальных id для парсинга {len(USERS_ID_DATA)}.")
     if CONTINUE_PARSING:
         USERS_ID_DATA -= set(load_today_data_from_db(gamer_collection).user_id)
-    logger.info(f"Уникальных id для парсинга {len(USERS_ID_DATA)}.")
-
-    USERS_ID_DATA = USERS_ID_DATA
-    logger.info(
-        f"Уникальных id для продолжения парсинга {len(USERS_ID_DATA)}.")
+        logger.info(
+            f"Уникальных id для продолжения парсинга {len(USERS_ID_DATA)}.")
 
     for user_id in USERS_ID_DATA:
         MAIN_QUEUE.put(user_id)
