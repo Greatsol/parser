@@ -1,7 +1,9 @@
 TOR_PORT = 9050
 PROXY_LIST = ""
-THREADS_NUM = 9
+THREADS_NUM = 8
 FILES_PATH = "/root/data/"
 FILE_ROTATION = 1000
 JSON_PATH = "/root/backup/ids.json"
-CONTINUE_PARSING = True
+CONTINUE_PARSING = False
+DB_URI = "mongodb://epal:7010@localhost:27017/epal_db?authSource=epal_db"
+OUTPUT_EXCEL_PATH = "/root/data"

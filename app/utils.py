@@ -1,20 +1,21 @@
 import json
 import re
-from queue import Queue
-from typing import Any, Generator, Optional
 from pathlib import Path
+from queue import Queue
+from datetime import datetime
+from typing import Any, Generator, Optional
 
 import pandas as pd
+from pymongo.collection import Collection
 
-from app.config import FILES_PATH, JSON_PATH
+from app.config import OUTPUT_EXCEL_PATH
+from app.main import logger
 from app.parser import Parser
 from app.pydantic_classes import Game, Games
-from app.main import logger
 
 
 def clean_gamer_json(data: str) -> str:
     """Очистка json от невалидируемых объектов."""
-
     data = re.sub("undefined", '"undefined"', data)
     data = re.sub(r"function\(\){}", '"function(){}"', data)
     data = re.sub(r"\"create\".+{}}\)\)}", "", data)
@@ -51,7 +52,7 @@ def parse_user_id_by_category(product_type_id: int, parser: Parser) -> list[int]
         "orderField": 1,
         "productTypeId": product_type_id,
         "pn": 1,
-        "clientNo": "d57ff9454"
+        "clientNo": "d57ff9454",
     }
     url = "https://play.epal.gg/web/product-search/list"
     page_counter = 1
@@ -79,47 +80,13 @@ def parse_user_id_by_category(product_type_id: int, parser: Parser) -> list[int]
     return users_id
 
 
-def func_chunks_generators(lst: list[Any], n: int) -> Generator:
-    """Разделение массива ссылок на n равных частей."""
-    chunk_len = int(len(lst) / n)
-    for i in range(0, len(lst), chunk_len):
-        yield lst[i: i + chunk_len]
+def write_gamers_data_to_file(collection: Collection) -> None:
+    """Загрузка свежеспаршенных данных в файл."""
+    data = load_today_data(collection)
+    data.to_csv(f"{OUTPUT_EXCEL_PATH}/{str(datetime.now().date())}.csv")
 
 
-def write_gamers_data_to_file(data: list[dict[str, Any]], file_name: int | str) -> None:
-    """Запись категории игроков в файл."""
-    pd.DataFrame(data).to_excel(f"{FILES_PATH}{file_name}.xlsx")
-
-
-def write_last_file(q: Queue) -> None:
-    """Запись остатков данных в очереди в файл."""
-    data = []
-    while q.qsize():
-        data.append(q.get())
-    write_gamers_data_to_file(data, file_name="final")
-
-
-def write_ids_to_json(data: set[int]) -> None:
-    """Записать все id в json для продолжения парсинга"""
-    with open(JSON_PATH, "w", encoding="utf8") as file:
-        json.dump(list(data), file, indent=4)
-
-
-def cocncat_xlsxs(file_path: Optional[str] = None) -> Optional[pd.DataFrame]:
-    """Объединяет все xlsx в FILE_PATH."""
-    dfs = []
-    for path in Path(FILES_PATH).iterdir():
-        try:
-            dfs.append(pd.read_excel(path))
-        except pd._config.config.OptionError:
-            logger.error(f"Error with reading file: {path}")
-    df = pd.concat(dfs)
-    if file_path:
-        df.to_excel(file_path)
-    else:
-        return df
-
-
-def parse_used_id_from_xlsx() -> set[int]:
-    """Возвращает список использованных id."""
-    return set(cocncat_xlsxs().user_id)
+def load_today_data_from_db(collection: Collection) -> pd.DataFrame:
+    """Загрузка свежеспаршенных данных в DataFrame."""
+    data = pd.DataFrame(gamer_collection.find({"date":str(datetime.now().date())}))
+    return data

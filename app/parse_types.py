@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import Any
 
-from app.parser import Parser
 from app.main import logger
+from app.parser import Parser
 
 
 class ValidationError(Exception):
@@ -33,11 +33,13 @@ class Gamer:
     def make_empty_gamer(self, epal_id: int) -> None:
         self.user_id = epal_id
         self.name = "Invalid user"
+        self.timestamp = datetime.now()
 
     def get_product_serve(self, epal_id: int, parser: Parser) -> int | Exception:
         data = {"productId": str(epal_id), "shareCode": ""}
         response = parser.request(
-            "POST", path=f"https://play.epal.gg/web/product/detail", data=str(data))
+            "POST", path=f"https://play.epal.gg/web/product/detail", data=str(data)
+        )
         if response == False:
             return 0
         response = response.json()
@@ -45,10 +47,15 @@ class Gamer:
             return Exception("No content in product response json.")
         return response["content"]["serveNum"]
 
-    def get_gamer_info(self, epal_id: int, parser: Parser) -> dict[str, str | int] | Exception:
+    def get_gamer_info(
+        self, epal_id: int, parser: Parser
+    ) -> dict[str, str | int] | Exception:
         data = {"userId": epal_id}
         response = parser.request(
-            "POST", path="https://play.epal.gg/web/user-search/info-to-detail", data=str(data))
+            "POST",
+            path="https://play.epal.gg/web/user-search/info-to-detail",
+            data=str(data),
+        )
         if response == False:
             logger.error(f"{epal_id} недоступен.")
             return Exception
@@ -82,3 +89,5 @@ class Gamer:
             setattr(self, product_name, f"{price}/{unit}")
             setattr(self, f"{product_name} count", serve_num)
         self.timestamp = datetime.now()
+        self.date = str(datetime.now().date())
+

@@ -1,37 +1,68 @@
-from threading import Thread
 from queue import Queue
+from threading import Thread
 from time import sleep
 from typing import Any
 
 from loguru import logger
+from pymongo import MongoClient
 
-from app.config import THREADS_NUM, FILES_PATH, FILE_ROTATION, CONTINUE_PARSING
+from app.config import (
+    CONTINUE_PARSING,
+    DB_URI,
+    JSON_PATH,
+    THREADS_NUM,
+)
 from app.parse_types import Gamer
 from app.parser import Parser
 from app.pydantic_classes import Game
 from app.utils import (
-    func_chunks_generators,
     parse_categories_id,
     parse_user_id_by_category,
     write_gamers_data_to_file,
-    write_ids_to_json,
-    parse_used_id_from_xlsx
+    load_today_data_from_db
 )
 
 
 logger.add(
     "log/debug.log",
     format="{time} | {level} | {message}",
-    level="DEBUG",
+    level="INFO",
     rotation="12:00",
     compression="zip",
 )
+
+
+"""Подключение к БД."""
+client = MongoClient(DB_URI)
+db = client["epal_db"]
+gamer_collection = db["Gamers"]
 
 
 USERS_ID_DATA = []
 CATEGORY_QUEUE: Queue[Game] = Queue()
 MAIN_QUEUE: Queue[int] = Queue()
 USER_DATA_QUEUE: Queue[dict[str, Any]] = Queue()
+
+
+def parse_id_multithread() -> None:
+    """Парсит id игроков из всех категорий в многопоточном режиме."""
+    games = parse_categories_id(parser=Parser())
+    if isinstance(games, Exception):
+        raise games
+
+    for game in games:
+        CATEGORY_QUEUE.put(game)
+
+    category_threads = [
+        Thread(
+            target=parse_id_thread,
+            kwargs={"name": f"Категории {i}"},
+            name=f"Категории {i}",
+        )
+        for i in range(1, THREADS_NUM + 1)
+    ]
+    [thread.start() for thread in category_threads]
+    [thread.join() for thread in category_threads]
 
 
 @logger.catch
@@ -51,62 +82,47 @@ def parse_id_thread(name: str) -> None:
     logger.info(f"Поток {name} завершён.")
 
 
+def parse_gamers_multithread() -> None:
+    """Запуск парсинга игроков в многопоточном режиме."""
+    user_parsers = []
+    for i in range(THREADS_NUM):
+        name = f"Парсинг пользователей {i}"
+        user_parsers.append(
+            Thread(target=parse_user_data, kwargs={"name": name}, name=name)
+        )
+    [thread.start() for thread in user_parsers]
+    [thread.join() for thread in user_parsers]
+
+
 @logger.catch
-def parse_user_data(name: str) -> None:
+def parse_gamers_thread(name: str) -> None:
     """Парсинг игроков."""
     logger.info(f"Поток {name} запущен.")
     parser = Parser()
     while MAIN_QUEUE.qsize():
-        USER_DATA_QUEUE.put(
-            Gamer(MAIN_QUEUE.get(), parser=parser).to_pandas_row())
+        gamer_id = MAIN_QUEUE.get()
+        logger.info(f"Поток {name}. Начал парсить пользователя {gamer_id}")
+        try:
+            res = Gamer(gamer_id, parser=parser, thread_name=name).to_pandas_row()
+            gamer_collection.insert_one(res)
+            USER_DATA_QUEUE.put(res)
+            logger.success(f"Поток {name}. Спарсил пользователя {gamer_id}")
+        except:
+            logger.error(f"Поток {name}. Ошибка пользователя {gamer_id}")
     logger.info(f"Поток {name} закончен.")
 
 
-@logger.catch
-def write_data_thread() -> None:
-    """Поток записи в файлы."""
-    name = 0
-    logger.info("Поток записи в файлы запущен.")
-    while True:
-        if USER_DATA_QUEUE.qsize() > FILE_ROTATION:
-            data: list[dict[str, Any]] = []
-            for _ in range(FILE_ROTATION):
-                data.append(USER_DATA_QUEUE.get())
-            write_gamers_data_to_file(data, name)
-            logger.info(f"Файл ~/data/{name}.xlsx записан.")
-            name += 1
-        else:
-            sleep(300)
-
-
-def parse_users_ids() -> None:
-    games = parse_categories_id(parser=Parser())
-    if isinstance(games, Exception):
-        raise games
-    
-    for game in games:
-        CATEGORY_QUEUE.put(game)
-    category_threads = [
-        Thread(
-            target=parse_id_thread, kwargs={"name": f"Категории {i}"}, name=f"Категории {i}"
-        )
-        for i in range(1, THREADS_NUM+1)
-    ]
-    [thread.start() for thread in category_threads]
-    [thread.join() for thread in category_threads]
-
+def make_parsing_queue() -> None:
+    """Создание очереди для парсинга пользовательских данных."""
     global USERS_ID_DATA
-
-    write_ids_to_json(set(USERS_ID_DATA))
-
-    if CONTINUE_PARSING:
-        USERS_ID_DATA = list(set(CONTINUE_PARSING) / parse_used_id_from_xlsx)
-    else:
-        pass
     logger.info(f"Из категорий спаршено {len(USERS_ID_DATA)} id.")
     USERS_ID_DATA = set(USERS_ID_DATA)
-    write_ids_to_json(USERS_ID_DATA)
+    if CONTINUE_PARSING:
+        USERS_ID_DATA -= set(load_today_data_from_db().user_id)
     logger.info(f"Уникальных id для парсинга {len(USERS_ID_DATA)}.")
+
+    USERS_ID_DATA = USERS_ID_DATA
+    logger.info(f"Уникальных id для продолжения парсинга {len(USERS_ID_DATA)}.")
 
     for user_id in USERS_ID_DATA:
         MAIN_QUEUE.put(user_id)
@@ -115,22 +131,13 @@ def parse_users_ids() -> None:
 
 
 @logger.catch
-def main():
+def main() -> None:
+    """Запуск парсера."""
     logger.info("Начало парсинга.")
 
-    parse_users_ids()
-    
-    user_parsers = []
-    for i in range(THREADS_NUM):
-        name = f"Парсинг пользователей {i}"
-        user_parsers.append(
-            Thread(target=parse_user_data, kwargs={"name": name}, name=name))
-    [thread.start() for thread in user_parsers]
-
-    write_thread = Thread(target=write_data_thread, name="Поток записи")
-    write_thread.start()
-
-    [thread.join() for thread in user_parsers]
-    write_thread.join()
+    parse_id_multithread()
+    make_parsing_queue()
+    parse_gamers_multithread()
+    write_gamers_data_to_file()
 
     logger.info("Парсинг завершён.")
