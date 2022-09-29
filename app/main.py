@@ -1,6 +1,5 @@
 from queue import Queue
 from threading import Thread
-from time import sleep
 from typing import Any
 
 from loguru import logger
@@ -29,7 +28,7 @@ db = client["epal_db"]
 gamer_collection = db["Gamers"]
 
 
-USERS_ID_DATA = []
+USERS_ID_DATA: list[int] | set[int] = []
 CATEGORY_QUEUE: Queue[Game] = Queue()
 MAIN_QUEUE: Queue[int] = Queue()
 USER_DATA_QUEUE: Queue[dict[str, Any]] = Queue()
