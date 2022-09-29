@@ -40,7 +40,7 @@ class Gamer:
         response = parser.request(
             "POST", path=f"https://play.epal.gg/web/product/detail", data=str(data)
         )
-        if response == False:
+        if isinstance(response, bool):
             return 0
         response = response.json()
         if response["content"] is None:
@@ -56,9 +56,9 @@ class Gamer:
             path="https://play.epal.gg/web/user-search/info-to-detail",
             data=str(data),
         )
-        if response == False:
+        if isinstance(response, bool):
             logger.error(f"{epal_id} недоступен.")
-            return Exception
+            return Exception()
         response = response.json()
         if "content" not in response.keys():
             return Exception("Key content don't in product response json.")
@@ -90,4 +90,3 @@ class Gamer:
             setattr(self, f"{product_name} count", serve_num)
         self.timestamp = datetime.now()
         self.date = str(datetime.now().date())
-

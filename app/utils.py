@@ -1,9 +1,6 @@
 import json
 import re
-from pathlib import Path
-from queue import Queue
 from datetime import datetime
-from typing import Any, Generator, Optional
 
 import pandas as pd
 from pymongo.collection import Collection
@@ -26,8 +23,10 @@ def clean_gamer_json(data: str) -> str:
 
 def parse_page(url: str, parser: Parser) -> dict[str, str | int] | Exception:
     """Извлечение json-а из страницы по ссылке."""
-    page_content = parser.request(method="GET", path=url).text
-    dirty_json = re.search(r"Props = {.+}", page_content)
+    page_content = parser.request(method="GET", path=url)
+    if isinstance(page_content, bool):
+        return Exception("Don't have needed json.")
+    dirty_json = re.search(r"Props = {.+}", page_content.text)
     if dirty_json is None:
         return Exception("Don't have needed json.")
     dirty_json = dirty_json.group()[8:]
@@ -62,7 +61,7 @@ def parse_user_id_by_category(product_type_id: int, parser: Parser) -> list[int]
     while content_length == 20 and error_counter < 5 and page_counter <= 500:
         data["pn"] = page_counter
         response = parser.request("POST", url, data=str(data))
-        if response == False:
+        if isinstance(response, bool):
             error_counter += 1
             continue
         try:
@@ -82,11 +81,11 @@ def parse_user_id_by_category(product_type_id: int, parser: Parser) -> list[int]
 
 def write_gamers_data_to_file(collection: Collection) -> None:
     """Загрузка свежеспаршенных данных в файл."""
-    data = load_today_data(collection)
+    data = load_today_data_from_db(collection)
     data.to_csv(f"{OUTPUT_EXCEL_PATH}/{str(datetime.now().date())}.csv")
 
 
 def load_today_data_from_db(collection: Collection) -> pd.DataFrame:
     """Загрузка свежеспаршенных данных в DataFrame."""
-    data = pd.DataFrame(gamer_collection.find({"date":str(datetime.now().date())}))
+    data = pd.DataFrame(collection.find({"date": str(datetime.now().date())}))
     return data

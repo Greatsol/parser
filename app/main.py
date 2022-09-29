@@ -6,21 +6,12 @@ from typing import Any
 from loguru import logger
 from pymongo import MongoClient
 
-from app.config import (
-    CONTINUE_PARSING,
-    DB_URI,
-    JSON_PATH,
-    THREADS_NUM,
-)
+from app.config import CONTINUE_PARSING, DB_URI, THREADS_NUM
 from app.parse_types import Gamer
 from app.parser import Parser
 from app.pydantic_classes import Game
-from app.utils import (
-    parse_categories_id,
-    parse_user_id_by_category,
-    write_gamers_data_to_file,
-    load_today_data_from_db
-)
+from app.utils import (load_today_data_from_db, parse_categories_id,
+                       parse_user_id_by_category, write_gamers_data_to_file)
 
 
 logger.add(
@@ -88,7 +79,8 @@ def parse_gamers_multithread() -> None:
     for i in range(THREADS_NUM):
         name = f"Парсинг пользователей {i}"
         user_parsers.append(
-            Thread(target=parse_user_data, kwargs={"name": name}, name=name)
+            Thread(target=parse_gamers_thread,
+                   kwargs={"name": name}, name=name)
         )
     [thread.start() for thread in user_parsers]
     [thread.join() for thread in user_parsers]
@@ -103,7 +95,7 @@ def parse_gamers_thread(name: str) -> None:
         gamer_id = MAIN_QUEUE.get()
         logger.info(f"Поток {name}. Начал парсить пользователя {gamer_id}")
         try:
-            res = Gamer(gamer_id, parser=parser, thread_name=name).to_pandas_row()
+            res = Gamer(gamer_id, parser=parser).to_pandas_row()
             gamer_collection.insert_one(res)
             USER_DATA_QUEUE.put(res)
             logger.success(f"Поток {name}. Спарсил пользователя {gamer_id}")
@@ -118,11 +110,12 @@ def make_parsing_queue() -> None:
     logger.info(f"Из категорий спаршено {len(USERS_ID_DATA)} id.")
     USERS_ID_DATA = set(USERS_ID_DATA)
     if CONTINUE_PARSING:
-        USERS_ID_DATA -= set(load_today_data_from_db().user_id)
+        USERS_ID_DATA -= set(load_today_data_from_db(gamer_collection).user_id)
     logger.info(f"Уникальных id для парсинга {len(USERS_ID_DATA)}.")
 
     USERS_ID_DATA = USERS_ID_DATA
-    logger.info(f"Уникальных id для продолжения парсинга {len(USERS_ID_DATA)}.")
+    logger.info(
+        f"Уникальных id для продолжения парсинга {len(USERS_ID_DATA)}.")
 
     for user_id in USERS_ID_DATA:
         MAIN_QUEUE.put(user_id)
@@ -138,6 +131,6 @@ def main() -> None:
     parse_id_multithread()
     make_parsing_queue()
     parse_gamers_multithread()
-    write_gamers_data_to_file()
+    write_gamers_data_to_file(gamer_collection)
 
     logger.info("Парсинг завершён.")
