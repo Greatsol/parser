@@ -46,10 +46,10 @@ def parse_id_multithread() -> None:
     category_threads = [
         Thread(
             target=parse_id_thread,
-            kwargs={"name": f"Категории {i}"},
-            name=f"Категории {i}",
+            kwargs={"name": f"Категории {i+1}"},
+            name=f"Категории {i+1}",
         )
-        for i in range(1, THREADS_NUM + 1)
+        for i in range(THREADS_NUM)
     ]
     [thread.start() for thread in category_threads]
     [thread.join() for thread in category_threads]
@@ -76,7 +76,7 @@ def parse_gamers_multithread() -> None:
     """Запуск парсинга игроков в многопоточном режиме."""
     user_parsers = []
     for i in range(THREADS_NUM):
-        name = f"Парсинг пользователей {i}"
+        name = f"Парсинг пользователей {i+1}"
         user_parsers.append(
             Thread(target=parse_gamers_thread,
                    kwargs={"name": name}, name=name)
