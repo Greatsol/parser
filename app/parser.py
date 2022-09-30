@@ -85,17 +85,17 @@ class Parser:
             logger.error(f"{thread_name}requests.exceptions.ConnectionError")
             return False
 
-        logger.info(
-            f"{thread_name}{method} request to {path} with data {kwargs.get('data')}. Status code: {response.status_code}"
-        )
+        # logger.info(
+        #     f"{thread_name}{method} request to {path} with data {kwargs.get('data')}. Status code: {response.status_code}"
+        # )
 
         if response.status_code != 200 or (
             method == "POST" and response.json()["content"] is None
         ):
             self.update_proxy()
-            logger.error(
-                f"{thread_name}Request to {path} with data {kwargs.get('data')} filed."
-            )
+            # logger.error(
+            #     f"{thread_name}Request to {path} with data {kwargs.get('data')} filed."
+            # )
             return False
 
         return response

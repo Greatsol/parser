@@ -3,7 +3,7 @@ from threading import Thread
 from typing import Any
 
 from loguru import logger
-from pymongo import MongoClient
+import pymongo
 
 from app.config import CONTINUE_PARSING, DB_URI, THREADS_NUM
 from app.parse_types import Gamer
@@ -16,14 +16,14 @@ from app.utils import (load_today_data_from_db, parse_categories_id,
 logger.add(
     "log/debug.log",
     format="{time} | {level} | {message}",
-    level="INFO",
-    rotation="12:00",
+    level="DEBUG",
+    rotation="01:24",
     compression="zip",
 )
 
 
 """Подключение к БД."""
-client = MongoClient(DB_URI)
+client = pymongo.MongoClient(DB_URI)
 db = client["epal_db"]
 gamer_collection = db["Gamers"]
 
@@ -92,15 +92,18 @@ def parse_gamers_thread(name: str) -> None:
     parser = Parser()
     while MAIN_QUEUE.qsize():
         gamer_id = MAIN_QUEUE.get()
-        logger.info(f"Поток {name}. Начал парсить пользователя {gamer_id}")
+        # logger.info(f"Поток {name}. Начал парсить пользователя {gamer_id}")
+        # try:
+        res = Gamer(gamer_id, parser=parser).to_pandas_row()
         try:
-            res = Gamer(gamer_id, parser=parser).to_pandas_row()
             gamer_collection.insert_one(res)
-            USER_DATA_QUEUE.put(res)
-            logger.success(f"Поток {name}. Спарсил пользователя {gamer_id}")
-        except Exception as err:
-            logger.error(
-                f"Поток {name}. Ошибка пользователя {gamer_id}. {err}")
+        except pymongo.errors.AutoReconnect as err:
+            logger.error(f"Поток {name}. {err}")
+        USER_DATA_QUEUE.put(res)
+        logger.success(f"Поток {name}. Спарсил пользователя {gamer_id}")
+        # except Exception as err:
+        #     logger.error(
+        #         f"Поток {name}. Ошибка пользователя {gamer_id}. {err}")
     logger.info(f"Поток {name} закончен.")
 
 
