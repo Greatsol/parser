@@ -79,7 +79,7 @@ class Gamer:
         self.bio = data["userContent"]
         self.serve_num = data["serveNum"]
         for socialweb in data["socialList"]:
-            setattr(self, socialweb["type"], socialweb["url"])
+            setattr(self, str(socialweb["type"]), socialweb["url"])
         for product in data["products"]:
             product_name = product["productName"]
             price = product["price"]
