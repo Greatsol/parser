@@ -17,7 +17,7 @@ logger.add(
     "log/debug.log",
     format="{time} | {level} | {message}",
     level="DEBUG",
-    rotation="01:24",
+    rotation="07:25",
     compression="zip",
 )
 
@@ -113,8 +113,8 @@ def make_parsing_queue() -> None:
     logger.info(f"Из категорий спаршено {len(USERS_ID_DATA)} id.")
     USERS_ID_DATA = set(USERS_ID_DATA)
     logger.info(f"Уникальных id для парсинга {len(USERS_ID_DATA)}.")
-    if CONTINUE_PARSING:
-        USERS_ID_DATA -= set(load_today_data_from_db(gamer_collection).user_id)
+    if CONTINUE_PARSING and not (df := load_today_data_from_db(gamer_collection)).empty:
+        USERS_ID_DATA -= set(df.user_id)
         logger.info(
             f"Уникальных id для продолжения парсинга {len(USERS_ID_DATA)}.")
 
