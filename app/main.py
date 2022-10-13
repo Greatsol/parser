@@ -5,7 +5,7 @@ from typing import Any
 from loguru import logger
 import pymongo
 
-from app.config import CONTINUE_PARSING, DB_URI, THREADS_NUM
+from app.config import CONTINUE_PARSING, DB_URI, THREADS_NUM, LOG_ROTATION
 from app.parse_types import Gamer
 from app.parser import Parser
 from app.pydantic_classes import Game
@@ -17,7 +17,7 @@ logger.add(
     "log/debug.log",
     format="{time} | {level} | {message}",
     level="DEBUG",
-    rotation="05:25",
+    rotation=LOG_ROTATION,
     compression="zip",
 )
 
@@ -127,6 +127,5 @@ def main() -> None:
     parse_id_multithread()
     make_parsing_queue()
     parse_gamers_multithread()
-    write_gamers_data_to_file(gamer_collection)
 
     logger.info("Парсинг завершён.")

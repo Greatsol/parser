@@ -10,3 +10,4 @@ THREADS_NUM = int(os.environ["THREADS_NUM"])
 CONTINUE_PARSING = os.environ["CONTINUE_PARSING"] == "True"
 DB_URI = os.environ["DB_URI"]
 OUTPUT_EXCEL_PATH = os.environ["OUTPUT_EXCEL_PATH"]
+LOG_ROTATION = os.environ["LOG_ROTATION"]
