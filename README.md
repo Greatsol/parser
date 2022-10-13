@@ -23,7 +23,15 @@ pip3 install poetry
 poetry install
 ```
 ## Настройка
-Все настройки находятся в [app/config.py](app/config.py).
+Создать `.env` файл с настройкми бота (`.env_example -> .env`):
+```bash
+TOR_PORT=9050
+PROXY_LIST=
+THREADS_NUM=<THREADS_NUM>
+CONTINUE_PARSING=False/True
+DB_URI=<DB_URI>
+OUTPUT_EXCEL_PATH=/root/data
+```
 
 ## Запуск
 ```sh

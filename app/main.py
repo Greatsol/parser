@@ -17,7 +17,7 @@ logger.add(
     "log/debug.log",
     format="{time} | {level} | {message}",
     level="DEBUG",
-    rotation="07:25",
+    rotation="05:25",
     compression="zip",
 )
 
@@ -92,8 +92,6 @@ def parse_gamers_thread(name: str) -> None:
     parser = Parser()
     while MAIN_QUEUE.qsize():
         gamer_id = MAIN_QUEUE.get()
-        # logger.info(f"Поток {name}. Начал парсить пользователя {gamer_id}")
-        # try:
         res = Gamer(gamer_id, parser=parser).to_pandas_row()
         try:
             gamer_collection.insert_one(res)
@@ -101,9 +99,6 @@ def parse_gamers_thread(name: str) -> None:
             logger.error(f"Поток {name}. {err}")
         USER_DATA_QUEUE.put(res)
         logger.success(f"Поток {name}. Спарсил пользователя {gamer_id}")
-        # except Exception as err:
-        #     logger.error(
-        #         f"Поток {name}. Ошибка пользователя {gamer_id}. {err}")
     logger.info(f"Поток {name} закончен.")
 
 
